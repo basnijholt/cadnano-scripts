@@ -17,13 +17,13 @@
 #     - removeStaples(helix_num, start, step, num)
 #     - insertScaffCrossover(up_helix, bot_helix, base_num)
 #     - forcePath(helix_num, start, stop)
-                
+
 # In[37]:
 
 import matplotlib.pyplot as plt
 import numpy as np
 import json
-    
+
 def load_json(file_name, period=32):
     """
     Loads a .json file in the correct way, so it can still be read by cadnano2.
@@ -34,7 +34,7 @@ def load_json(file_name, period=32):
         The name and location of the *.json file
     period : int
         The period of repeating segments of the staples, in the square lattice this is by default 32.
-    
+
     Returns
     -------
     data : list
@@ -48,14 +48,14 @@ def load_json(file_name, period=32):
     idx : dict
     polarity
     period
-    
+
     Example
     -------
     data, vstrands, num_helices, num_bases, idx, polarity, per = load_json('ruler_design_12nov_1353.json')
     """
     with open(file_name) as f:
         data = json.load(f)
-    
+
     vstrands = data['vstrands']
     num_helices = len(vstrands)
     num_bases = len(vstrands[0]['scaf'])
@@ -82,7 +82,7 @@ def save_json(file_name):
 def removeCrossover(strand, start, step, num, side='left'):
     """
     Removes a crossover of the staple strands.
-    
+
     Parameters
     ----------
     strand : int
@@ -100,18 +100,18 @@ def removeCrossover(strand, start, step, num, side='left'):
         next_strand = vstrands[idx[strand]]['stap'][start][2]
         # if the first strand is (even & left) or (odd & right):
         for i in range(num):
-            vstrands[idx[strand]]['stap'][start+i*step][2:]= [-1,-1]
-            vstrands[idx[next_strand]]['stap'][start+i*step][:2]= [-1,-1]
+            vstrands[idx[strand]]['stap'][start+i*step][2:] = [-1, -1]
+            vstrands[idx[next_strand]]['stap'][start+i*step][:2] = [-1, -1]
     else:
         next_strand = vstrands[idx[strand]]['stap'][start][0]
         for i in range(num):
-            vstrands[idx[strand]]['stap'][start+i*step][:2]= [-1,-1]
-            vstrands[idx[next_strand]]['stap'][start+i*step][2:]= [-1,-1]
+            vstrands[idx[strand]]['stap'][start+i*step][:2] = [-1, -1]
+            vstrands[idx[next_strand]]['stap'][start+i*step][2:] = [-1, -1]
 
-def insertBreak(helix_num, start, step, num):
+def insertBreak(helix_num, start, step, num, strand='stap'):
     """
     Inserts a break in the staple strand.
-    
+
     Parameters
     ----------
     strand : int
@@ -123,19 +123,19 @@ def insertBreak(helix_num, start, step, num):
     num : int
         number of times the pattern repeats
     """
-    if polarity[idx[helix_num]]%2 == 0: 
+    if polarity[idx[helix_num]] % 2 == 0:
         for i in range(num):
-            vstrands[idx[helix_num]]['stap'][start+i*step][:2]= [-1,-1]
-            vstrands[idx[helix_num]]['stap'][start+1+i*step][2:]= [-1,-1]
+            vstrands[idx[helix_num]][strand][start+i*step][:2] = [-1, -1]
+            vstrands[idx[helix_num]][strand][start+1+i*step][2:] = [-1, -1]
     else:
         for i in range(num):
-            vstrands[idx[helix_num]]['stap'][start+i*step][2:]= [-1,-1]
-            vstrands[idx[helix_num]]['stap'][start+1+i*step][:2]= [-1,-1]    
-            
+            vstrands[idx[helix_num]][strand][start+i*step][2:] = [-1, -1]
+            vstrands[idx[helix_num]][strand][start+1+i*step][:2] = [-1, -1]
+
 def insertScaffBreak(helix_num, start, step, num):
     """
     Inserts a break in the scaffold strand.
-    
+
     Parameters
     ----------
     strand : int
@@ -147,19 +147,12 @@ def insertScaffBreak(helix_num, start, step, num):
     num : int
         number of times the pattern repeats
     """
-    if polarity[idx[helix_num]]%2!=0:        
-        for i in range(num):
-            vstrands[idx[helix_num]]['scaf'][start+i*step][:2]= [-1,-1]
-            vstrands[idx[helix_num]]['scaf'][start+1+i*step][2:]= [-1,-1]
-    else:
-        for i in range(num):
-            vstrands[idx[helix_num]]['scaf'][start+i*step][2:]= [-1,-1]
-            vstrands[idx[helix_num]]['scaf'][start+1+i*step][:2]= [-1,-1]        
-        
+    return insertBreak(helix_num, start, step, num, strand='scaf')
+
 def insertDeletions(start, step, num):
     """
     Inserts a deletion at every 'step' bases and starts at 'start'.
-    
+
     Parameters
     ----------
     start : int
@@ -170,57 +163,56 @@ def insertDeletions(start, step, num):
     for helix_num in idx:
         if vstrands[idx[helix_num]]['scaf'][num_bases/2] != [-1, -1, -1, -1]:
             for i in range(num):
-                vstrands[idx[helix_num]]['skip'][start+i*step] = -1  
+                vstrands[idx[helix_num]]['skip'][start+i*step] = -1
 
 def findStaples():
-    """ 
+    """
     Finds the beginning points of all staples
-    
+
     Returns
     -------
     staples : list
-        A list of tuples with the num_helix and the num_base where 
+        A list of tuples with the num_helix and the num_base where
         the staple starts [(num_helix, num_base), (0, 154), (1, 14), ..., (14, 158)]
     num_staples : int
         Number of staples in the design
-        
+
     Example
     -------
     staples, num_staples = findStaples()
         returns the list and number of staples
     """
-    staples = []
-    for helix_num in idx:
-        for base_num in range(num_bases):
-            staple = vstrands[idx[helix_num]]['stap'][base_num]
-            if staple[:2] == [-1, -1] and staple[2:] != [-1, -1]:
-                staples.append((helix_num, base_num))
-    num_staples = len(staples)
-    return staples, num_staples
+    # Create a list of two-tuples describing the start of all staples.
+    staples = [(helix_num, base_num) for helix_num in idx
+                                     for base_num, staple in enumerate(vstrands[idx[helix_num]]['stap'])
+                                     if staple[:2] == [-1, -1] and staple[2:] != [-1, -1]]
+    return staples
 
 def colorCycle(i):
-    """ 
-    This funtion returns a color, and loops back to the first one when it reaches the last one. 
+    """
+    This funtion returns a color, and loops back to the first one when it reaches the last one.
     """
     colors = [13369344, 243362,  1507550, 16204552, 8947848, 12060012, 29184, 5749504, 7536862,  3355443, 11184640, 16225054]
     return colors[i%len(colors)]
 
 def resetColor():
-    """ 
-    Resets all staples to the color grey 
     """
-    staples, num_staples = findStaples()
+    Resets all staples to the color grey
+    """
+    staples = findStaples()
     # empty all lists, so no color data remains
     for helix_num in idx:
         vstrands[idx[helix_num]]['stap_colors'] = []
     # create nested lists with color data, all in grey.
-    for staple_num in range(num_staples):
-        vstrands[idx[staples[staple_num][0]]]['stap_colors'].append([staples[staple_num][1], 8947848])
+    for helix_num, base_num in staples:
+        # idx is a dict that maps "user interface" indices to vstand indices.
+        vstrands[idx[helix_num]]['stap_colors'].append([base_num, 8947848])
+
 
 def colorBased_on_helix():
-    """ 
-    This funtions gives each staple that starts on the same helix, the same color. 
-        
+    """
+    This funtions gives each staple that starts on the same helix, the same color.
+
     Dependends
     ----------
     resetColor()
@@ -231,11 +223,11 @@ def colorBased_on_helix():
         num_staples = len(vstrands[idx[helix_num]]['stap_colors'])
         for staple_num in range(num_staples):
             vstrands[idx[helix_num]]['stap_colors'][staple_num][1] = colorCycle(helix_num)
-            
+
 def colorBased_on_length():
-    """ 
-    This funtions gives each staple that starts on the same helix, the same color. 
-        
+    """
+    This funtions gives each staple that starts on the same helix, the same color.
+
     Dependends
     ----------
     resetColor()
@@ -246,27 +238,28 @@ def colorBased_on_length():
     resetColor()
     staple_info = stapleLength()
     bins = np.array([0, 32, 40, 41, 47, 49, 1000])
-    inds = np.digitize(staple_info[:,0], bins)
+    inds = np.digitize(staple_info[:, 0], bins)
     i = 0
     for helix_num in idx:
-        num = len(vstrands[idx[helix_num]]['stap_colors'])
-        for staple_num in range(num):
-            vstrands[idx[helix_num]]['stap_colors'][staple_num][1] = colorCycle(inds[i])
+        for color in vstrands[idx[helix_num]]['stap_colors']:
+            # color = base_num, color_code
+            color[1] = colorCycle(inds[i])
             i += 1
-            
+
+
 def stapleLength(plot=0):
     """
     Returns an array with the lengths of the staples in the structure and a histogram with the lengths of the staples.
-    
+
     Parameters
     ----------
     plot : int
         Use stapleLength(plot=1) to plot a histogram or stapleLength() for no plot.
-    
+
     Dependends
     ----------
     findStaples()
-    
+
     Returns
     -------
     staple_info : array_like
@@ -276,11 +269,11 @@ def stapleLength(plot=0):
     """
     staples, num_staples = findStaples()
     staples_length = []
-    staple_info = np.zeros((num_staples,6), dtype=int)
+    staple_info = np.zeros((num_staples, 6), dtype=int)
     for staple_num in range(num_staples):
         helix_num = staples[staple_num][0]
         base_num = staples[staple_num][1]
-        staple = vstrands[idx[helix_num]]['stap'][base_num]  
+        staple = vstrands[idx[helix_num]]['stap'][base_num]
         staple_info[staple_num, 1] = helix_num
         staple_info[staple_num, 2] = base_num
         i = 1
@@ -303,8 +296,8 @@ def stapleLength(plot=0):
     return staple_info
 
 def removeAllStaples():
-    """ 
-    This removes all Staples from the structure. 
+    """
+    This removes all Staples from the structure.
     """
     for helix_num in idx:
         for base_num in range(num_bases):
@@ -313,7 +306,7 @@ def removeAllStaples():
 def joinStaple(helix_num, start, step, num):
     """
     Joins a break between two staples.
-    
+
     Parameters
     ----------
     helix_num : int
@@ -332,11 +325,11 @@ def joinStaple(helix_num, start, step, num):
         else:
             vstrands[idx[helix_num]]['stap'][start+i*step][2:]= [idx[helix_num],start+1+i*step]
             vstrands[idx[helix_num]]['stap'][start+1+i*step][:2]= [idx[helix_num],start+i*step]
-        
+
 def removeStaples(helix_num, start, step, num):
     """
     Removes staples.
-    
+
     Parameters
     ----------
     strand : int
@@ -347,7 +340,7 @@ def removeStaples(helix_num, start, step, num):
         the step interval of repeating pattern
     num : int
         number of times the pattern repeats
-    """ 
+    """
     for i in range(num):
         staple = vstrands[idx[helix_num]]['stap']
         base_num = start+i*step
@@ -365,7 +358,7 @@ def removeStaples(helix_num, start, step, num):
 def insertScaffCrossover(up_helix, bot_helix, base_num):
     """
     Inserts a scaffold crossover between up_helix and bot_helix.
-    
+
     Parameters
     ----------
     up_helix : int
@@ -378,20 +371,20 @@ def insertScaffCrossover(up_helix, bot_helix, base_num):
     if polarity[idx[up_helix]]%2 != 0:
         vstrands[idx[up_helix]]['scaf'][base_num][:2]= [bot_helix, base_num]
         vstrands[idx[up_helix]]['scaf'][base_num+1][2:]= [bot_helix, base_num+1]
-        
+
         vstrands[idx[bot_helix]]['scaf'][base_num][2:]= [up_helix, base_num]
         vstrands[idx[bot_helix]]['scaf'][base_num+1][:2]= [up_helix, base_num+1]
     else:
         vstrands[idx[up_helix]]['scaf'][base_num][2:]= [bot_helix, base_num]
         vstrands[idx[up_helix]]['scaf'][base_num+1][:2]= [bot_helix, base_num+1]
-        
+
         vstrands[idx[bot_helix]]['scaf'][base_num][:2]= [up_helix, base_num]
         vstrands[idx[bot_helix]]['scaf'][base_num+1][2:]= [up_helix, base_num+1]
-        
+
 def forcePath(helix_num, start, stop):
     """
     Forces a path between staples on the same helix
-    
+
     Parameters
     ----------
     helix_num : int
@@ -400,13 +393,13 @@ def forcePath(helix_num, start, stop):
         number of the base of the 3' (or 5') end
     stop : int
         number of the base of the 5' (or 3') end
-        
+
     Example
     -------
     forcePath(6, 19, 210)
     >>>> forces path between staple on base 19 and 210 on helix number 6
     """
-    if polarity[idx[helix_num]]%2 != 0: 
+    if polarity[idx[helix_num]]%2 != 0:
         vstrands[idx[helix_num]]['stap'][start][:2] = [helix_num, stop]
         vstrands[idx[helix_num]]['stap'][stop][2:] = [helix_num, start]
     else:
@@ -426,7 +419,7 @@ for i in [9, 11, 13]:
 
 for i in [7, 9, 11]:
     removeCrossover(i, 55, per, 6, 'right')
-    
+
 for i in [0, 2, 4, 6]:
     insertBreak(i, 39, per, 6)
 
@@ -435,13 +428,13 @@ for i in [14, 16, 18, 20]:
 
 for i in [2, 4]:
     removeCrossover(i, 23, 1, 1, 'right')
-    
+
 for i in [9, 11, 13]:
-    insertScaffBreak(i, 64, 48, 3)    
+    insertScaffBreak(i, 64, 48, 3)
 
 for i in [0, 5, 9, 11, 13, 14]:
     forcePath(i, 16, 207)
-    
+
 for i in [1, 3, 5, 15, 17, 19]:
     insertScaffCrossover(i, i+1, 127)
 
@@ -497,4 +490,3 @@ for i in range(len(vstrands[0]['stap_colors'])):
     vstrands[1]['stap_colors'][i][1] = colorCycle(i%6)
 
 save_json('ruler_output.json')
-

@@ -7,8 +7,10 @@
 
 import sys
 import pickle
-import copy
+import copy             # !! Not used
 import json
+
+## !! DEFINE MODULE LEVEL CONSTANTS AT THE TOP.
 
 def load_json(file_name, period=32):
     """
@@ -20,7 +22,7 @@ def load_json(file_name, period=32):
         The name and location of the *.json file
     period : int
         The period of repeating segments of the staples, in the square lattice this is by default 32.
-    
+
     Returns
     -------
     data : list
@@ -34,15 +36,15 @@ def load_json(file_name, period=32):
     idx : dict
     polarity
     period
-    
+
     Example
     -------
     data, vstrands, num_helices, num_bases, idx, polarity, per = load_json('ruler_design_12nov_1353.json')
     """
     with open(file_name) as f:
         data = json.load(f)
-           
-    vstrands = data['vstrands']
+
+    vstrands = data['vstrands']     # !! vstrands also in outer script.
     num_helices = len(vstrands)
     num_bases = len(vstrands[0]['scaf'])
     idx = {} #Generate dictionary for translating helix_num to vstrand_num
@@ -61,7 +63,7 @@ def save_json(file_name):
     file_name : str
         The name and location of the *.json file
     """
-    data['vstrands'] = vstrands
+    data['vstrands'] = vstrands     # !! Accessing global variables
     with open(file_name, 'wb') as outfile:
         json.dump(data, outfile)
 
@@ -79,17 +81,18 @@ def comp_seq_FN(raw_sequence):
     return antisense_seq
 
 def stap_color_string_FN(stap_color_int):
-    return color_dc[stap_color_int]
+    return color_dc[stap_color_int]          # !! Accessing global variables
 
 def initVars():
     """
     Initialization of variables, gives the colors a name and initiates the null_bp
-    
+
     Example
     -------
     stap_color_dc, null_bp = initVars()
     """
-    null_bp = [-1, -1]
+    null_bp = [-1, -1]       # !! Redefining global variables
+    # Do this in a single statement:
     stap_color_dc  = {}
     stap_color_dc[13369344] = 'red'
     stap_color_dc[16204552] = 'red orange'
@@ -107,14 +110,14 @@ def initVars():
 
 def openPickledFile(f):
     """ Loads a pickled file """
-    input_file = file(f, 'r')
+    input_file = file(f, 'r')       # DONT USE file() !!
     loaded_txt = pickle.load(input_file)
     input_file.close()
     return loaded_txt
 
 def openFile(f):
     """" Opens a txt file in standard format. """
-    input_file = file(f, 'r')
+    input_file = file(f, 'r')       # DONT USE file() !!
     loaded_txt = input_file.read()
     input_file.close()
     return loaded_txt
@@ -240,7 +243,7 @@ def give_sequences(cadnano_file):
     return scaf_output_ra, sorted_stap_output_ra, vstrands
 
 def print_sequences():
-    print 
+    print
     print
     #Print sorted staple strand sequences with annotations
     for sub_ra in sorted_stap_output_ra:
@@ -256,7 +259,7 @@ def print_sequences():
             note = ' short scaf strand\t' + str(sub_ra[0]) + 'mer\t' + str(sub_ra[1]) + '\t' + 'start\t' + str(sub_ra[2]) + '\t' + 'end'
             seq_note = seq + '\t' + note
             print seq_note
-            
+
     #Print additional miscellaneous information
     num_stap_bases = 0
     for sub_ra in sorted_stap_output_ra:
@@ -303,13 +306,12 @@ scaf_output_ra, sorted_stap_output_ra, vstrands = give_sequences('ruler_output.j
 eight_mers = openPickledFile('141110_1628_ortho_8mers_2303.txt')
 handle_color = {'cyan' : [0, 5], 'blue' : [1, 6], 'red orange' : [2, 7], 'light gray' : [3, 8], 'magenta' : [4, 9]}
 
-for color in handle_color:
-    for i in range(len(sorted_stap_output_ra)):
-        if sorted_stap_output_ra[i][0] == color:
-            if sorted_stap_output_ra[i][3][0] == 0:
-                sorted_stap_output_ra[i][-1] += 'TT' + eight_mers[handle_color[color][0]]
-            if sorted_stap_output_ra[i][3][0] == 1:
-                sorted_stap_output_ra[i][-1] += 'TT' + eight_mers[handle_color[color][1]]
+for color, seqidx in handle_color.items():
+    for row in sorted_stap_output_ra:
+        if row[0] == color and row[3][0] in (0, 1):
+            # Add 'TT' to staple seq:
+            row[-1] += 'TT' + eight_mers[seqidx[row[3][0]]]
+
 print_sequences()
 
 
@@ -323,15 +325,12 @@ handle_color = {56 : [0, 5], 88 : [1, 6], 120 : [2, 7], 152 : [3, 8], 184 : [4, 
 
 print "before adding handles"
 # print_sequences()
+helix_to_handle_seq_idx = {16: 0, 18: 1}
+for end_num, seqidx in handle_color.items():
+    for row in sorted_stap_output_ra:
+        # row[3] is cadnano_start coordinate (helix, basenum), e.g. [2, 200]
+        if row[3][1] == end_num and row[3][0] in (16, 18):
+            row[-1] += 'TTTT' + comp_seq_FN(eight_mers[seqidx[0 if row[3][0] == 16 else 1]])
 
-for end_num in handle_color:
-    for i in range(len(sorted_stap_output_ra)):
-        if sorted_stap_output_ra[i][3][1] == end_num:
-            if sorted_stap_output_ra[i][3][0] == 16:
-                sorted_stap_output_ra[i][-1] += 'TTTT' + comp_seq_FN(eight_mers[handle_color[end_num][0]])
-                
-            if sorted_stap_output_ra[i][3][0] == 18:
-                sorted_stap_output_ra[i][-1] += 'TTTT' + comp_seq_FN(eight_mers[handle_color[end_num][1]])
 print "after adding handles"
 print_sequences()
-
